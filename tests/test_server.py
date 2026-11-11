@@ -68,6 +68,8 @@ class ServerTest(unittest.TestCase):
         self.assertEqual(state["config"]["model"], "claude-haiku-5-5")
         self.assertEqual(state["config"]["effort"], "low")
         self.assertEqual(state["config"]["effort_hard"], "medium")
+        self.assertEqual(state["config"]["model_impossible"], "claude-fable-5-2")
+        self.assertEqual(state["config"]["effort_impossible"], "max")
         status, state = self.call("POST", "/api/config", {"model": "claude-haiku-5-5", "effort": "xhigh"})
         self.assertEqual(state["config"]["model"], "claude-haiku-5-5")
         self.assertEqual(state["config"]["effort"], "xhigh")
@@ -81,7 +83,9 @@ class ServerTest(unittest.TestCase):
                                                               "efforts": {"easy": "max"}}), encoding="utf-8")
         cfg = config.load()
         self.assertEqual(cfg, {"model": config.DEFAULT_MODEL, "effort": config.DEFAULT_EFFORT,
-                               "effort_hard": config.DEFAULT_EFFORT_HARD, "fallback": "auto"})
+                               "effort_hard": config.DEFAULT_EFFORT_HARD,
+                               "model_impossible": config.DEFAULT_MODEL_IMPOSSIBLE,
+                               "effort_impossible": config.DEFAULT_EFFORT_IMPOSSIBLE, "fallback": "auto"})
         config.save({"model": config.DEFAULT_MODEL})
 
     def test_key_is_never_returned_whole(self):
@@ -115,6 +119,23 @@ class ServerTest(unittest.TestCase):
             self.assertEqual(body["model"], "claude-haiku-5-5")
             efforts[level] = body["output_config"]["effort"]
         self.assertEqual(efforts, {"easy": "low", "medium": "low", "hard": "medium"})
+
+    def test_impossible_uses_fable_at_max(self):
+        self.call("POST", "/api/key", {"name": "claude", "value": "sk-ant-segredo-1234"})
+        self.fake.answers.append(claude_move("e4"))
+        status, res = self.call("POST", "/api/move", {"game": "chess", "difficulty": "impossible",
+                                                     "position": "p", "moves": ["e4", "d4"]})
+        self.assertEqual(status, 200)
+        self.assertEqual(res["model"], "claude-fable-5-2")
+        self.assertGreater(res["cost"], 0)   # priced by ai.EXTRA_PRICES until provedor.py knows Fable 5.2
+        req = self.fake.requests[-1]
+        body = req["body"]
+        self.assertEqual(body["model"], "claude-fable-5-2")
+        self.assertEqual(body["output_config"]["effort"], "max")
+        self.assertEqual(body["thinking"], {"type": "adaptive"})
+        self.assertEqual(body["max_tokens"], 64000)
+        self.assertEqual(body["fallbacks"], "default")
+        self.assertIn("hardest level", body["system"][0]["text"])
 
     def test_move_errors_reach_the_screen(self):
         self.call("POST", "/api/key", {"name": "claude", "value": "sk-ant-segredo-1234"})

@@ -10,9 +10,9 @@ import cards from './games/cards.js';
 
 const GAMES = [chess, checkers, tictactoe, connect4, reversi, cards];
 const BY_ID = Object.fromEntries(GAMES.map((g) => [g.id, g]));
-const LEVELS = { easy: 'Fácil', medium: 'Médio', hard: 'Difícil' };
+const LEVELS = { easy: 'Fácil', medium: 'Médio', hard: 'Difícil', impossible: 'Impossível' };
 // What each level tells Claude (the model is the same for all of them; see server/ai.py).
-const STYLE_NOTES = { easy: 'joga como iniciante e erra de propósito', medium: 'joga como amador, erra de vez em quando', hard: 'joga o melhor que consegue' };
+const STYLE_NOTES = { easy: 'joga como iniciante e erra de propósito', medium: 'joga como amador, erra de vez em quando', hard: 'joga o melhor que consegue', impossible: 'pensa no máximo: pode levar minutos e custa caro por lance' };
 const EFFORTS = { low: 'baixo', medium: 'médio', high: 'alto', xhigh: 'muito alto', max: 'máximo' };
 const STARTER_NOTES = {
   chess: 'quem começa joga de brancas',
@@ -71,6 +71,7 @@ function modelName(id) {
 
 function levelModel(level = difficulty) {
   if (!server) return { model: '', effort: '' };
+  if (level === 'impossible') return { model: server.config.model_impossible, effort: server.config.effort_impossible };
   return { model: server.config.model, effort: level === 'hard' ? server.config.effort_hard : server.config.effort };
 }
 
@@ -354,13 +355,15 @@ function renderSettings() {
     state.textContent = end ? `Guardada (termina em ${end.replace('…', '')})` : 'Nenhuma guardada';
     state.classList.toggle('ok', Boolean(end));
   }
-  const model = $('model');
-  model.innerHTML = '';
-  for (const m of server.models) model.add(new Option(m.name, m.id, false, m.id === server.config.model));
-  if (!server.models.some((m) => m.id === server.config.model)) {
-    model.add(new Option(server.config.model, server.config.model, false, true));
+  for (const [id, key] of [['model', 'model'], ['modelImpossible', 'model_impossible']]) {
+    const model = $(id);
+    model.innerHTML = '';
+    for (const m of server.models) model.add(new Option(m.name, m.id, false, m.id === server.config[key]));
+    if (!server.models.some((m) => m.id === server.config[key])) {
+      model.add(new Option(server.config[key], server.config[key], false, true));
+    }
   }
-  for (const [id, key] of [['effort', 'effort'], ['effortHard', 'effort_hard']]) {
+  for (const [id, key] of [['effort', 'effort'], ['effortHard', 'effort_hard'], ['effortImpossible', 'effort_impossible']]) {
     const effort = $(id);
     effort.innerHTML = '';
     for (const e of server.efforts) effort.add(new Option(`esforço ${EFFORTS[e] || e}`, e, false, e === server.config[key]));
@@ -401,6 +404,8 @@ function wireSettings() {
   $('model').addEventListener('change', (ev) => saveConfig({ model: ev.target.value }));
   $('effort').addEventListener('change', (ev) => saveConfig({ effort: ev.target.value }));
   $('effortHard').addEventListener('change', (ev) => saveConfig({ effort_hard: ev.target.value }));
+  $('modelImpossible').addEventListener('change', (ev) => saveConfig({ model_impossible: ev.target.value }));
+  $('effortImpossible').addEventListener('change', (ev) => saveConfig({ effort_impossible: ev.target.value }));
   for (const form of document.querySelectorAll('.key-row')) {
     form.addEventListener('submit', async (ev) => {
       ev.preventDefault();

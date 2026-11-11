@@ -30,7 +30,7 @@ janela ◄── http://127.0.0.1:8084/
 |---|---|
 | `server/server.py` | Rotas `/api/state`, `/api/config`, `/api/key`, `/api/move`, `/api/update/*` e os estáticos de `app/` |
 | `server/ai.py` | O pedido do lance: prompt por jogo e por nível (`BEGINNER`, `AMATEUR`, `style()`), ferramenta `play_move` com `enum` dos lances legais e `strict`, empurrão único, lance aleatório se falhar, reserva por crédito |
-| `server/config.py` | Caminhos, versão, modelo e os dois esforços padrão (`effort_for`) |
+| `server/config.py` | Caminhos, versão, modelo e esforços padrão de cada nível (`model_for`, `effort_for`) |
 | `server/provedor.py` | **Cópia idêntica** do `contato-ia/contato/provedor.py`. Bug nele se corrige no mestre e se copia (com o `tests/test_provedor.py`) |
 | `server/segredos.py` | Copiado do `tierlist-ia` (que copiou do `central`): DPAPI |
 | `server/atualizador.py`, `start.py` | Atualização pelas releases do GitHub, no modelo do `clave` |
@@ -61,6 +61,13 @@ janela ◄── http://127.0.0.1:8084/
   em cada três de propósito; Difícil = joga o melhor que consegue. A 1.0.0 trocava modelo e esforço por nível
   (Haiku, Sonnet, Opus) e ficou forte demais: não voltar a isso sem ele pedir. Se o Fácil ainda jogar bem
   demais, mexer no texto do `BEGINNER`, não no modelo. Configuração antiga por nível é ignorada.
+- **Nível Impossível** (pedido dele em 10/11/2026: "cria um modo impossível com o fable 5.2 no máximo"): a
+  exceção à regra do mesmo modelo, com `model_impossible` (padrão `claude-fable-5-2`) e `effort_impossible`
+  (padrão `max`) próprios, texto de `style()` de jogar perfeito, `max_tokens` 64.000 e tempo limite de 20 min
+  (o pensamento no máximo é longo). O Fable 5.2 ainda não tem preço no `provedor.py` mestre: o preço está em
+  `ai.EXTRA_PRICES` (US$ 8 / 0,20 / 10 / 40) até o mestre ganhar a linha; aí apagar o `EXTRA_PRICES`. Nunca
+  testado com a API de verdade; suspeitos se der erro: pedido sem streaming com `max_tokens` alto demorando
+  muitos minutos (a conexão pode cair) e o `fallbacks`.
 - **Reserva de recusa no servidor** (`fallbacks: "default"` com o beta `server-side-fallback-2026-07-01`) nos
   modelos que aceitam (Opus 5.5, Sonnet 5.5, Fable). No Haiku não existe. Nunca testado com a API de verdade:
   se a primeira chamada real der 400 citando `fallbacks`, o suspeito é esse campo.
@@ -78,7 +85,7 @@ janela ◄── http://127.0.0.1:8084/
 ## 4. Testes e verificação
 
 ```
-python -m unittest discover -s tests -t .     # nesta pasta; 75 testes, uns 8 s, sem rede
+python -m unittest discover -s tests -t .     # nesta pasta; 76 testes, uns 8 s, sem rede
 node --test tests/js/rules.test.mjs           # regras dos seis jogos, 16 testes, ~1 s
 ```
 

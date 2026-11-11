@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.0 (10/11/2026)
+
+**Novo**
+
+- Nível Impossível: o Claude Fable 5.2 no esforço máximo, instruído a jogar perfeito. Cada lance pode
+  levar minutos e custa bem mais que nos outros níveis. Modelo e esforço dele se trocam em
+  Configurações.
+
 ## 1.1.0 (10/11/2026)
 
 **Mudou**

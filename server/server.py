@@ -44,7 +44,9 @@ class State:
 
     def client(self, difficulty: str) -> ai.AIClient:
         cfg = config.load()
-        return ai.AIClient(cfg["model"], config.effort_for(cfg, difficulty), cfg["fallback"],
+        long = difficulty == "impossible"   # max effort: room to think and minutes to answer
+        return ai.AIClient(config.model_for(cfg, difficulty), config.effort_for(cfg, difficulty), cfg["fallback"],
+                           max_output=ai.MAX_OUTPUT_LONG if long else ai.MAX_OUTPUT, timeout=1200 if long else 300,
                            claude_key=self.secrets.obter("claude"), openai_key=self.secrets.obter("openai"),
                            url_claude=self.url_claude, url_openai=self.url_openai, breaker=self.breaker)
 

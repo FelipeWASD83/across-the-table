@@ -36,6 +36,7 @@
               <button type="button" role="radio" data-value="easy">Fácil</button>
               <button type="button" role="radio" data-value="medium">Médio</button>
               <button type="button" role="radio" data-value="hard">Difícil</button>
+              <button type="button" role="radio" data-value="impossible">Impossível</button>
             </div>
             <span class="control-note" id="diffNote"></span>
           </div>
@@ -102,8 +103,8 @@
 
     <section class="drawer-section">
       <h3>Modelo</h3>
-      <p class="hint">O mesmo para os três níveis. O que muda entre Fácil, Médio e Difícil é como o Claude é instruído a jogar.</p>
-      <label class="stack" for="model">Modelo dos três níveis
+      <p class="hint">Fácil, Médio e Difícil usam o mesmo modelo e só mudam como o Claude é instruído a jogar. O Impossível tem modelo e esforço próprios.</p>
+      <label class="stack" for="model">Modelo do Fácil, do Médio e do Difícil
         <select id="model"></select>
       </label>
       <label class="stack" for="effort">Esforço no Fácil e no Médio
@@ -111,6 +112,12 @@
       </label>
       <label class="stack" for="effortHard">Esforço no Difícil
         <select id="effortHard"></select>
+      </label>
+      <label class="stack" for="modelImpossible">Modelo do Impossível
+        <select id="modelImpossible"></select>
+      </label>
+      <label class="stack" for="effortImpossible">Esforço no Impossível
+        <select id="effortImpossible"></select>
       </label>
       <label class="stack" for="fallback">Reserva quando o crédito acaba
         <select id="fallback"></select>

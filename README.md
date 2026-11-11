@@ -35,22 +35,26 @@ serve de reserva quando o crédito do Claude acaba.
 
 ## O que cada nível muda
 
-Os três níveis usam o mesmo modelo (Claude Haiku 5.5, por padrão). O que muda é como o Claude é
-instruído a jogar:
+Fácil, Médio e Difícil usam o mesmo modelo (Claude Haiku 5.5, por padrão). O que muda é como o
+Claude é instruído a jogar. O Impossível é a exceção: usa o Claude Fable 5.2 no esforço máximo.
 
 | Nível | Como joga | Esforço |
 |---|---|---|
 | Fácil | como iniciante naquele jogo, errando de propósito, mas sem entregar a partida | baixo |
 | Médio | como amador: sabe o básico e erra uma jogada em cada três, mais ou menos | baixo |
 | Difícil | o melhor que consegue | médio |
+| Impossível | o melhor que consegue, com o Claude Fable 5.2 pensando no máximo | máximo |
 
 Cada jogo tem o próprio jeito de iniciante (no xadrez, mexer peça sem plano e deixar peça
 desprotegida; na velha, esquecer de bloquear; no reversi, ignorar os cantos). Mesmo errando de
 propósito, ele aproveita vitória que está na cara.
 
-Modelo e os dois esforços se trocam em Configurações.
+Modelo e esforços se trocam em Configurações (o Impossível tem os campos próprios).
 
-Custo (estimativa, não medido): no Haiku cada lance custa uma fração de centavo. Quando só existe
+Custo (estimativa, não medida): no Haiku cada lance custa uma fração de centavo. No Impossível é
+outra conversa: o Fable 5.2 custa 80 vezes o Haiku por token e, no esforço máximo, pensa muito, então
+um lance pode custar perto de US$ 1 e levar alguns minutos. Uma partida de xadrez inteira nele pode
+passar de US$ 30. Vale olhar o custo da partida em cima da mesa. Quando só existe
 um lance possível, o app joga sozinho sem chamar a API.
 
 ## Se precisar mexer à mão

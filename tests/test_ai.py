@@ -139,7 +139,7 @@ class AITest(unittest.TestCase):
 
     def test_every_game_has_a_prompt(self):
         for game in ("chess", "checkers", "tictactoe", "connect4", "reversi", "cards"):
-            for level in ("easy", "medium", "hard"):
+            for level in ("easy", "medium", "hard", "impossible"):
                 self.assertIn("play_move", ai.system_prompt(game, level))
 
 

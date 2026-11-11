@@ -15,10 +15,13 @@ PORT = 8084
 # The difficulty changes how Claude is told to play (ai.style); every level uses the same model (decision of
 # 10/11/2026: changing model per level still played too well). Only Hard thinks a bit more: Haiku 5.5 with low
 # effort for Easy and Medium and medium effort for Hard, as he chose after testing with Haiku.
-DIFFICULTIES = ("easy", "medium", "hard")
+# "Impossible" (his request, 10/11/2026) is the exception: its own model and effort, Fable 5.2 at max.
+DIFFICULTIES = ("easy", "medium", "hard", "impossible")
 DEFAULT_MODEL = "claude-haiku-5-5"
 DEFAULT_EFFORT = "low"
 DEFAULT_EFFORT_HARD = "medium"
+DEFAULT_MODEL_IMPOSSIBLE = "claude-fable-5-2"
+DEFAULT_EFFORT_IMPOSSIBLE = "max"
 
 MODELS = [
     ("claude-haiku-5-5", "Claude Haiku 5.5"),
@@ -53,11 +56,21 @@ def _clean(saved: dict) -> dict:
     model = str(saved.get("model") or "").strip()[:80] or DEFAULT_MODEL
     effort = saved.get("effort") if saved.get("effort") in EFFORTS else DEFAULT_EFFORT
     effort_hard = saved.get("effort_hard") if saved.get("effort_hard") in EFFORTS else DEFAULT_EFFORT_HARD
+    model_impossible = str(saved.get("model_impossible") or "").strip()[:80] or DEFAULT_MODEL_IMPOSSIBLE
+    effort_impossible = (saved.get("effort_impossible") if saved.get("effort_impossible") in EFFORTS
+                         else DEFAULT_EFFORT_IMPOSSIBLE)
     fallback = str(saved.get("fallback") or "auto").strip()[:80] or "auto"
-    return {"model": model, "effort": effort, "effort_hard": effort_hard, "fallback": fallback}
+    return {"model": model, "effort": effort, "effort_hard": effort_hard, "model_impossible": model_impossible,
+            "effort_impossible": effort_impossible, "fallback": fallback}
+
+
+def model_for(cfg: dict, difficulty: str) -> str:
+    return cfg["model_impossible"] if difficulty == "impossible" else cfg["model"]
 
 
 def effort_for(cfg: dict, difficulty: str) -> str:
+    if difficulty == "impossible":
+        return cfg["effort_impossible"]
     return cfg["effort_hard"] if difficulty == "hard" else cfg["effort"]
 
 
@@ -72,7 +85,7 @@ def load() -> dict:
 def save(changes: dict) -> dict:
     with _lock:
         current = load()
-        for key in ("model", "effort", "effort_hard", "fallback"):
+        for key in ("model", "effort", "effort_hard", "model_impossible", "effort_impossible", "fallback"):
             if key in changes:
                 current[key] = changes[key]
         current = _clean(current)

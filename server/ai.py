@@ -25,6 +25,11 @@ URL_OPENAI = "https://api.openai.com/v1/responses"
 URL_CLAUDE = "https://api.anthropic.com/v1/messages"
 ATTEMPTS = 3
 MAX_OUTPUT = 16000
+MAX_OUTPUT_LONG = 64000     # the Impossible level thinks at max effort and needs room
+
+# Models that provedor.py (identical copy of the master in contato-ia) does not price yet:
+# (input, cache read, cache write 5 min, output) in US$ per 1M tokens, from the Claude API pricing table.
+EXTRA_PRICES = {"claude-fable-5-2": (8.00, 0.20, 10.00, 40.00)}
 MAX_MOVES = 400
 MAX_POSITION = 20000
 TOOL_NAME = "play_move"
@@ -140,13 +145,20 @@ def style(game: str, difficulty: str) -> str:
             "a reasonable but clearly weaker move on purpose instead of the best one. Still try to win, and do not "
             "throw the game."
         )
+    if difficulty == "impossible":
+        return (
+            "This is the hardest level: play perfectly. Take all the time you need. Calculate every critical line "
+            "deeply, look at every forcing move for both sides (captures, threats, checks, wins, blocks), check what "
+            "the opponent's best answer is to each candidate, and choose the strongest move there is. Never leave a "
+            "chance for the opponent that you could have avoided."
+        )
     return (
         "Play as strongly as you can. Calculate the critical lines, look at every forcing move (captures, threats, "
         "checks, wins), consider what the opponent will answer and choose the best move you can find."
     )
 
 
-DIFFICULTIES = ("easy", "medium", "hard")
+DIFFICULTIES = ("easy", "medium", "hard", "impossible")
 
 
 def system_prompt(game: str, difficulty: str) -> str:
@@ -202,7 +214,8 @@ def clean_request(game, difficulty, position, moves) -> tuple[str, str, str, lis
 class AIClient:
     def __init__(self, model: str, effort: str = "medium", fallback: str = "auto", *,
                  claude_key: str = "", openai_key: str = "", url_claude: str = URL_CLAUDE,
-                 url_openai: str = URL_OPENAI, timeout: float = 300, breaker: Disjuntor | None = None):
+                 url_openai: str = URL_OPENAI, timeout: float = 300, breaker: Disjuntor | None = None,
+                 max_output: int = MAX_OUTPUT):
         self.model = model
         self.effort = effort
         self.fallback_setting = fallback
@@ -211,6 +224,7 @@ class AIClient:
         self.url_claude = url_claude
         self.url_openai = url_openai
         self.timeout = timeout
+        self.max_output = max_output
         self.breaker = breaker or Disjuntor()
 
     # ── Which model answers ───────────────────────────────────────────────
@@ -251,7 +265,7 @@ class AIClient:
             picked_randomly = move not in moves
             if picked_randomly:
                 move = random.choice(moves)
-            return {"move": move, "model": model, "cost": provedor.custo(model, usage),
+            return {"move": move, "model": model, "cost": cost_of(model, usage),
                     "replaced": model != self.model, "random": picked_randomly, "forced": False}
         if len(failures) == 1:
             spare = self.fallback()
@@ -270,7 +284,7 @@ class AIClient:
         usage_total = _empty_usage()
         headers = {"x-api-key": self.claude_key, "anthropic-version": provedor.ANTHROPIC_VERSAO}
         for round_ in range(2):
-            body = provedor.corpo_claude(model, system, messages, self.effort, MAX_OUTPUT, ferramentas=[function])
+            body = provedor.corpo_claude(model, system, messages, self.effort, self.max_output, ferramentas=[function])
             body["tools"][0]["strict"] = True
             extra_headers = dict(headers)
             if model.lower().startswith(_FALLBACK_MODELS):
@@ -311,7 +325,7 @@ class AIClient:
         body = {"model": model, "instructions": system_prompt(game, difficulty),
                 "input": user_message(position, moves), "tools": [function],
                 "tool_choice": {"type": "function", "name": TOOL_NAME},
-                "reasoning": {"effort": effort}, "max_output_tokens": MAX_OUTPUT, "store": False}
+                "reasoning": {"effort": effort}, "max_output_tokens": self.max_output, "store": False}
         data = self._post("openai", self.url_openai, {"Authorization": f"Bearer {self.openai_key}"}, body)
         usage = _empty_usage()
         _add_usage(usage, data.get("usage") or {})
@@ -360,6 +374,22 @@ class AIClient:
                 continue
             raise AIError(_error_message(name, status, data))
         raise AIError(f"Depois de três tentativas o {name} continuou sem responder.")
+
+
+def cost_of(model: str, usage: dict) -> float | None:
+    cost = provedor.custo(model, usage)
+    if cost is not None or not usage:
+        return cost
+    price = EXTRA_PRICES.get(str(model or "").lower())
+    if not price:
+        return None
+    full, read, write, out = price
+    total = int(usage.get("input_tokens") or 0)
+    details = usage.get("input_tokens_details") or {}
+    cached = min(int(details.get("cached_tokens") or 0), total)
+    written = min(int(details.get("cache_write_tokens") or 0), total - cached)
+    return ((total - cached - written) * full + cached * read + written * write
+            + int(usage.get("output_tokens") or 0) * out) / 1_000_000
 
 
 def _empty_usage() -> dict:

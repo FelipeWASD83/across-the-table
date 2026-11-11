@@ -498,15 +498,13 @@ button.pile:not(:disabled) .card-back { outline: 3px solid var(--action); outlin
 .key-row { display: flex; flex-direction: column; gap: var(--s1); }
 .key-row label, .stack { font-weight: 700; font-size: var(--t-small); display: flex; flex-direction: column; gap: var(--s1); }
 .field-line { display: flex; gap: var(--s2); flex-wrap: wrap; }
-.field-line input { flex: 1; min-width: 0; }
+.field-line input, .field-line select { flex: 1; min-width: 0; }
 input, select {
   min-height: 40px; padding: 0 var(--s3); border: 1px solid var(--line-strong); border-radius: var(--r-small);
   background: oklch(0.995 0.002 85); font: inherit; color: var(--ink);
 }
 .key-state { font-size: var(--t-small); color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .key-state.ok { color: var(--win); font-weight: 700; }
-.levels { display: grid; grid-template-columns: auto 1fr auto; gap: var(--s2) var(--s3); align-items: center; }
-.levels span { font-weight: 700; }
 
 /* ── Telas estreitas e monitor em pé ────────────────────────────────────── */
 

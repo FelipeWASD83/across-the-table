@@ -11,6 +11,8 @@ import cards from './games/cards.js';
 const GAMES = [chess, checkers, tictactoe, connect4, reversi, cards];
 const BY_ID = Object.fromEntries(GAMES.map((g) => [g.id, g]));
 const LEVELS = { easy: 'Fácil', medium: 'Médio', hard: 'Difícil' };
+// What each level tells Claude (the model is the same for all of them; see server/ai.py).
+const STYLE_NOTES = { easy: 'joga como iniciante e erra de propósito', medium: 'joga como amador, erra de vez em quando', hard: 'joga o melhor que consegue' };
 const EFFORTS = { low: 'baixo', medium: 'médio', high: 'alto', xhigh: 'muito alto', max: 'máximo' };
 const STARTER_NOTES = {
   chess: 'quem começa joga de brancas',
@@ -69,7 +71,7 @@ function modelName(id) {
 
 function levelModel(level = difficulty) {
   if (!server) return { model: '', effort: '' };
-  return { model: server.config.models[level], effort: server.config.efforts[level] };
+  return { model: server.config.model, effort: level === 'hard' ? server.config.effort_hard : server.config.effort };
 }
 
 function record(s, game, who, move, info = {}) {
@@ -78,6 +80,7 @@ function record(s, game, who, move, info = {}) {
     if (info.forced) note = 'lance único';
     else if (info.random) note = `${modelName(info.model)}: a IA não escolheu, lance aleatório`;
     else if (info.model) note = modelName(info.model) + (info.replaced ? ' (reserva, sem crédito no principal)' : '');
+    if (info.level && !info.forced) note += `${note ? ', ' : ''}nível ${LEVELS[info.level].toLowerCase()}`;
   }
   s.log.push({ who, text: game.notation(s.state, move), note });
 }
@@ -144,7 +147,7 @@ async function claudeTurns(gameId, s) {
       render();
       return;
     }
-    record(s, game, 'claude', res.move, res);
+    record(s, game, 'claude', res.move, { ...res, level });
     s.cost += Number(res.cost) || 0;
     s.state = game.play(s.state, res.move);
     render();
@@ -324,8 +327,7 @@ function renderTop() {
   document.title = `${game.name} · Do Outro Lado`;
   setSegmented('difficulty', difficulty);
   setSegmented('starter', starter);
-  const { model, effort } = levelModel();
-  $('diffNote').textContent = model ? `${modelName(model)}, esforço ${EFFORTS[effort] || effort}` : '';
+  $('diffNote').textContent = STYLE_NOTES[difficulty];
   $('starterNote').textContent = STARTER_NOTES[current] || '';
 }
 
@@ -352,23 +354,16 @@ function renderSettings() {
     state.textContent = end ? `Guardada (termina em ${end.replace('…', '')})` : 'Nenhuma guardada';
     state.classList.toggle('ok', Boolean(end));
   }
-  const levels = $('levels');
-  levels.innerHTML = '';
-  for (const [level, label] of Object.entries(LEVELS)) {
-    const name = document.createElement('span');
-    name.textContent = label;
-    const model = document.createElement('select');
-    model.setAttribute('aria-label', `Modelo do nível ${label}`);
-    for (const m of server.models) model.add(new Option(m.name, m.id, false, m.id === server.config.models[level]));
-    if (!server.models.some((m) => m.id === server.config.models[level])) {
-      model.add(new Option(server.config.models[level], server.config.models[level], false, true));
-    }
-    const effort = document.createElement('select');
-    effort.setAttribute('aria-label', `Esforço do nível ${label}`);
-    for (const e of server.efforts) effort.add(new Option(`esforço ${EFFORTS[e] || e}`, e, false, e === server.config.efforts[level]));
-    model.addEventListener('change', () => saveConfig({ models: { [level]: model.value } }));
-    effort.addEventListener('change', () => saveConfig({ efforts: { [level]: effort.value } }));
-    levels.append(name, model, effort);
+  const model = $('model');
+  model.innerHTML = '';
+  for (const m of server.models) model.add(new Option(m.name, m.id, false, m.id === server.config.model));
+  if (!server.models.some((m) => m.id === server.config.model)) {
+    model.add(new Option(server.config.model, server.config.model, false, true));
+  }
+  for (const [id, key] of [['effort', 'effort'], ['effortHard', 'effort_hard']]) {
+    const effort = $(id);
+    effort.innerHTML = '';
+    for (const e of server.efforts) effort.add(new Option(`esforço ${EFFORTS[e] || e}`, e, false, e === server.config[key]));
   }
   const fb = $('fallback');
   fb.innerHTML = '';
@@ -403,6 +398,9 @@ function wireSettings() {
   $('closeSettings').addEventListener('click', close);
   document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && !drawer.hidden) close(); });
   $('fallback').addEventListener('change', (ev) => saveConfig({ fallback: ev.target.value }));
+  $('model').addEventListener('change', (ev) => saveConfig({ model: ev.target.value }));
+  $('effort').addEventListener('change', (ev) => saveConfig({ effort: ev.target.value }));
+  $('effortHard').addEventListener('change', (ev) => saveConfig({ effort_hard: ev.target.value }));
   for (const form of document.querySelectorAll('.key-row')) {
     form.addEventListener('submit', async (ev) => {
       ev.preventDefault();

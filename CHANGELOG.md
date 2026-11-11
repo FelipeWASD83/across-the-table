@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.0 (10/11/2026)
+
+**Mudou**
+
+- A dificuldade agora muda só o jeito de jogar, não o modelo: no Fácil o Claude joga como iniciante
+  daquele jogo e erra de propósito (sem entregar a partida), no Médio joga como amador e erra de vez em
+  quando, no Difícil joga o melhor que consegue. O Claude estava bom demais no xadrez e na velha.
+- Os três níveis usam o Claude Haiku 5.5, com esforço baixo no Fácil e no Médio e médio no Difícil.
+- Configurações tem um modelo só e dois esforços (Fácil e Médio, e Difícil).
+- A súmula mostra em que nível foi cada lance do Claude.
+
 ## 1.0.0 (10/11/2026)
 
 **Novo**

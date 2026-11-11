@@ -44,7 +44,7 @@ class State:
 
     def client(self, difficulty: str) -> ai.AIClient:
         cfg = config.load()
-        return ai.AIClient(cfg["models"][difficulty], cfg["efforts"][difficulty], cfg["fallback"],
+        return ai.AIClient(cfg["model"], config.effort_for(cfg, difficulty), cfg["fallback"],
                            claude_key=self.secrets.obter("claude"), openai_key=self.secrets.obter("openai"),
                            url_claude=self.url_claude, url_openai=self.url_openai, breaker=self.breaker)
 

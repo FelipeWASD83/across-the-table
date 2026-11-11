@@ -39,15 +39,35 @@ class AITest(unittest.TestCase):
         self.assertEqual(body["fallbacks"], "default")
         self.assertEqual(req["headers"].get("anthropic-beta"), ai.FALLBACK_BETA)
         self.assertIn("Play as strongly as you can", body["system"][0]["text"])
+        self.assertNotIn("bad moves on purpose", body["system"][0]["text"])
         self.assertIn("- Nf6", body["messages"][0]["content"][0]["text"])
 
     def test_haiku_has_no_fallback_param(self):
         self.fake.answers.append(claude_move("e5"))
-        self.client("claude-haiku-5-5", "low").choose_move("chess", "easy", POSITION, MOVES)
+        self.client("claude-haiku-5-5", "low").choose_move("chess", "hard", POSITION, MOVES)
         body = self.fake.requests[0]["body"]
         self.assertNotIn("fallbacks", body)
         self.assertNotIn("anthropic-beta", self.fake.requests[0]["headers"])
-        self.assertIn("casual beginner", body["system"][0]["text"])
+
+    def test_levels_only_change_the_prompt(self):
+        prompts = {}
+        for level in ("easy", "medium", "hard"):
+            self.fake.answers.append(claude_move("e5"))
+            self.client().choose_move("chess", level, POSITION, MOVES)
+            body = self.fake.requests[-1]["body"]
+            self.assertEqual(body["model"], "claude-sonnet-5-5")
+            self.assertEqual(body["output_config"]["effort"], "medium")
+            prompts[level] = body["system"][0]["text"]
+        self.assertEqual(len(set(prompts.values())), 3)
+        self.assertIn("beginner who only knows how the pieces move", prompts["easy"])
+        self.assertIn("bad moves on purpose", prompts["easy"])
+        self.assertIn("do not throw the game", prompts["easy"])
+        self.assertIn("average casual player", prompts["medium"])
+
+    def test_beginner_text_is_game_specific(self):
+        self.assertIn("young child", ai.system_prompt("tictactoe", "easy"))
+        self.assertIn("corners and edges", ai.system_prompt("reversi", "easy"))
+        self.assertNotIn("young child", ai.system_prompt("chess", "easy"))
 
     def test_single_move_skips_the_api(self):
         result = self.client().choose_move("tictactoe", "medium", "board", ["B2"])

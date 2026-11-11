@@ -85,29 +85,76 @@ GAMES = {
     ),
 }
 
-STYLES = {
-    "easy": (
-        "Play like a casual beginner who is having fun: pick a natural-looking move after a quick glance, do not "
-        "calculate deeply, and do not hunt for the very best move. It is fine to miss subtle threats now and then. "
-        "Never pick a move that is obviously absurd."
+# How Claude is told to play at each level. The model and effort are the same for every level (config.py);
+# only this text changes. Easy and medium describe a weaker player of that specific game, who makes bad
+# moves on purpose but does not throw the game.
+BEGINNER = {
+    "chess": (
+        "a beginner who only knows how the pieces move and nothing else: no openings, no tactics, no strategy. "
+        "Move pieces without a plan, push random pawns, bring the queen out early, leave pieces undefended, forget "
+        "to castle and miss most forks, pins and threats against you"
     ),
-    "medium": (
-        "Play like a solid club player: look for the best move, check the obvious threats from both sides and avoid "
-        "simple blunders, without exhaustive calculation."
+    "checkers": (
+        "a beginner who only knows the rules: move pieces without a plan, leave gaps in your back row, walk into "
+        "exchanges that lose material, ignore the race to get kings and miss most of the opponent's threats"
     ),
-    "hard": (
-        "Play as strongly as you can. Calculate the critical lines, look at every forcing move (captures, threats, "
-        "checks, wins), consider what the opponent will answer and choose the best move you can find."
+    "tictactoe": (
+        "a young child who just learned the game: place your mark almost anywhere, never plan forks, and often "
+        "forget to block the person's two in a row"
+    ),
+    "connect4": (
+        "a beginner: drop discs without a plan, do not set up threats, and often fail to notice when the person "
+        "has three in a row"
+    ),
+    "reversi": (
+        "a beginner: always grab the move that flips the most discs right now, have no idea that corners and edges "
+        "matter, and happily play next to an empty corner"
+    ),
+    "cards": (
+        "a beginner: play the first card you see that fits, spend Wild cards and action cards right away instead of "
+        "saving them, and choose the Wild color without thinking much about your hand"
     ),
 }
 
+AMATEUR = {
+    "chess": "knows the basic principles (develop pieces, castle, do not hang pieces) but does not calculate deeply",
+    "checkers": "knows the basic ideas (keep pieces together, guard the back row) but does not calculate deeply",
+    "tictactoe": "blocks the obvious threats but does not always see forks coming",
+    "connect4": "blocks the obvious three in a row but does not plan threats several moves ahead",
+    "reversi": "knows that corners are good but still trades long-term position for flipping many discs",
+    "cards": "holds on to Wild cards for a while but does not track which colors the person is missing",
+}
+
+
+def style(game: str, difficulty: str) -> str:
+    if difficulty == "easy":
+        return (
+            f"Play like {BEGINNER[game]}. Make bad moves on purpose: most of the time choose a weak or aimless move, "
+            "not the best one, even when you can see the best one. But do not throw the game: if a win is right in "
+            "front of you (a winning move, a piece left hanging that anyone would notice), take it, and do not make "
+            "absurd moves just to lose."
+        )
+    if difficulty == "medium":
+        return (
+            f"Play like an average casual player who {AMATEUR[game]}. Now and then (about one move in three) choose "
+            "a reasonable but clearly weaker move on purpose instead of the best one. Still try to win, and do not "
+            "throw the game."
+        )
+    return (
+        "Play as strongly as you can. Calculate the critical lines, look at every forcing move (captures, threats, "
+        "checks, wins), consider what the opponent will answer and choose the best move you can find."
+    )
+
+
+DIFFICULTIES = ("easy", "medium", "hard")
+
 
 def system_prompt(game: str, difficulty: str) -> str:
-    return f"""You are playing a game against a person in a game app. You play your own side and want to win.
+    return f"""You are playing a game against a person in a game app. You play your own side.
 
 Game: {GAMES[game]}
 
-Strength: {STYLES[difficulty]}
+How to play: {style(game, difficulty)}
 
 You always answer by calling the `{TOOL_NAME}` tool once with exactly one of the legal moves you were given, written exactly as listed. Do not answer in text."""
 
@@ -132,7 +179,7 @@ def clean_request(game, difficulty, position, moves) -> tuple[str, str, str, lis
     if game not in GAMES:
         raise AIError("Jogo desconhecido.")
     difficulty = str(difficulty or "")
-    if difficulty not in STYLES:
+    if difficulty not in DIFFICULTIES:
         raise AIError("Dificuldade desconhecida.")
     position = str(position or "").strip()
     if not position or len(position) > MAX_POSITION:

@@ -20,7 +20,7 @@ janela ◄── http://127.0.0.1:8084/
 - Preview: entradas `across-the-table` (8084, dados de verdade) e `across-the-table-demo` (8085) do
   `launch.json` da raiz. A demo (`tools\demo.py`) usa dados em `%TEMP%\across-the-table-demo` e um Claude
   falso que joga um lance aleatório do `enum` depois de 1,2 s (`--pausa` troca). Não gasta crédito.
-- Dados em `data/` (fora do git): `config.json` (modelo e esforço de cada nível, reserva) e
+- Dados em `data/` (fora do git): `config.json` (modelo, esforço do Fácil e Médio, esforço do Difícil, reserva) e
   `segredos.json` (chaves da Anthropic, da OpenAI e token do GitHub, protegidas pelo DPAPI).
   `ACROSS_THE_TABLE_DATA` troca a pasta.
 
@@ -29,8 +29,8 @@ janela ◄── http://127.0.0.1:8084/
 | Arquivo | O que faz |
 |---|---|
 | `server/server.py` | Rotas `/api/state`, `/api/config`, `/api/key`, `/api/move`, `/api/update/*` e os estáticos de `app/` |
-| `server/ai.py` | O pedido do lance: prompt por jogo e por nível, ferramenta `play_move` com `enum` dos lances legais e `strict`, empurrão único, lance aleatório se falhar, reserva por crédito |
-| `server/config.py` | Caminhos, versão, modelos e esforços padrão de cada nível |
+| `server/ai.py` | O pedido do lance: prompt por jogo e por nível (`BEGINNER`, `AMATEUR`, `style()`), ferramenta `play_move` com `enum` dos lances legais e `strict`, empurrão único, lance aleatório se falhar, reserva por crédito |
+| `server/config.py` | Caminhos, versão, modelo e os dois esforços padrão (`effort_for`) |
 | `server/provedor.py` | **Cópia idêntica** do `contato-ia/contato/provedor.py`. Bug nele se corrige no mestre e se copia (com o `tests/test_provedor.py`) |
 | `server/segredos.py` | Copiado do `tierlist-ia` (que copiou do `central`): DPAPI |
 | `server/atualizador.py`, `start.py` | Atualização pelas releases do GitHub, no modelo do `clave` |
@@ -53,8 +53,14 @@ janela ◄── http://127.0.0.1:8084/
 - **Cada lance é um pedido novo** (sem histórico de conversa): a posição já leva o que importa (FEN e lances
   no xadrez, o placar no reversi, as últimas jogadas no Bate-Cor). Evita a regra de pensamento preservado e
   mantém o custo previsível.
-- **Níveis**: Fácil = Haiku 5.5 esforço baixo e instrução de jogar casual; Médio = Sonnet 5.5 médio; Difícil =
-  Opus 5.5 alto. Modelo e esforço trocáveis em Configurações; o estilo de jogo (texto `STYLES` do `ai.py`) não.
+- **Níveis só no prompt** (pedido dele em 10/11/2026, depois de testar a 1.0.0: "você é muito bom em xadrez e
+  jogo da velha"). O modelo é o mesmo nos três níveis, **Claude Haiku 5.5** por padrão (ele testou com o Haiku),
+  com esforço **baixo** no Fácil e no Médio e **médio** no Difícil (pedido dele no mesmo dia). O que muda é o
+  texto de `style()` no `ai.py`: Fácil = iniciante daquele jogo (texto próprio por jogo em `BEGINNER`) que erra
+  de propósito mas não entrega a partida (aproveita vitória na cara); Médio = amador (`AMATEUR`) que erra uma
+  em cada três de propósito; Difícil = joga o melhor que consegue. A 1.0.0 trocava modelo e esforço por nível
+  (Haiku, Sonnet, Opus) e ficou forte demais: não voltar a isso sem ele pedir. Se o Fácil ainda jogar bem
+  demais, mexer no texto do `BEGINNER`, não no modelo. Configuração antiga por nível é ignorada.
 - **Reserva de recusa no servidor** (`fallbacks: "default"` com o beta `server-side-fallback-2026-07-01`) nos
   modelos que aceitam (Opus 5.5, Sonnet 5.5, Fable). No Haiku não existe. Nunca testado com a API de verdade:
   se a primeira chamada real der 400 citando `fallbacks`, o suspeito é esse campo.
@@ -72,15 +78,16 @@ janela ◄── http://127.0.0.1:8084/
 ## 4. Testes e verificação
 
 ```
-python -m unittest discover -s tests -t .     # nesta pasta; 71 testes, uns 7 s, sem rede
+python -m unittest discover -s tests -t .     # nesta pasta; 75 testes, uns 8 s, sem rede
 node --test tests/js/rules.test.mjs           # regras dos seis jogos, 16 testes, ~1 s
 ```
 
 - 10/11/2026, na demo: os seis jogos jogados pela interface (lance, Claude pensando com o tempo, resposta,
   súmula, custo), Claude começando no Difícil, fim de partida com "Jogar de novo", Configurações (salvar
   modelo do nível, chave, procurar atualização). Layout conferido em tela ultrawide e em tela em pé.
-- **Nunca chamado com a chave real**: Claude e GPT de verdade não foram testados. Suspeitos se der erro na
-  primeira partida real: o campo `fallbacks` e o `strict` com `enum`.
+- Com a chave real: ele jogou a 1.0.0 (Haiku) em 10/11/2026 e funcionou; achou o Claude forte demais no
+  xadrez e na velha, o que levou à 1.1.0. O quanto os textos de iniciante enfraquecem o jogo ainda não foi
+  medido com a API de verdade. O GPT de verdade nunca foi testado.
 - O atualizador nunca rodou contra uma release de verdade.
 
 ## 5. Fim de tarefa

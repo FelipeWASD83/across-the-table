@@ -33,21 +33,25 @@ serve de reserva quando o crédito do Claude acaba.
 - A **Súmula**, à direita, lista os lances e qual modelo jogou cada um. Em cima da mesa aparece
   quanto a partida já custou.
 
-## O que cada nível usa
+## O que cada nível muda
 
-| Nível | Modelo | Esforço | Jeito de jogar |
-|---|---|---|---|
-| Fácil | Claude Haiku 5.5 | baixo | joga casual, sem calcular fundo |
-| Médio | Claude Sonnet 5.5 | médio | evita erro bobo |
-| Difícil | Claude Opus 5.5 | alto | calcula as linhas críticas |
+Os três níveis usam o mesmo modelo (Claude Haiku 5.5, por padrão). O que muda é como o Claude é
+instruído a jogar:
 
-Modelo e esforço de cada nível se trocam em Configurações. O jeito de jogar, não.
+| Nível | Como joga | Esforço |
+|---|---|---|
+| Fácil | como iniciante naquele jogo, errando de propósito, mas sem entregar a partida | baixo |
+| Médio | como amador: sabe o básico e erra uma jogada em cada três, mais ou menos | baixo |
+| Difícil | o melhor que consegue | médio |
 
-Custo (estimativa, não medido): uma partida de xadrez no Difícil deve ficar entre US$ 3 e 4 e
-cada lance pode levar de 10 a 30 segundos. No Médio, uns centavos por lance. Quando só existe um
-lance possível, o app joga sozinho sem chamar a API.
+Cada jogo tem o próprio jeito de iniciante (no xadrez, mexer peça sem plano e deixar peça
+desprotegida; na velha, esquecer de bloquear; no reversi, ignorar os cantos). Mesmo errando de
+propósito, ele aproveita vitória que está na cara.
 
-O Claude no Difícil joga bem, mas não é um motor de xadrez: ainda erra lance.
+Modelo e os dois esforços se trocam em Configurações.
+
+Custo (estimativa, não medido): no Haiku cada lance custa uma fração de centavo. Quando só existe
+um lance possível, o app joga sozinho sem chamar a API.
 
 ## Se precisar mexer à mão
 

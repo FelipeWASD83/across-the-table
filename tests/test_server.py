@@ -65,13 +65,24 @@ class ServerTest(unittest.TestCase):
     def test_state_and_config(self):
         status, state = self.call("GET", "/api/state")
         self.assertEqual(status, 200)
-        self.assertEqual(state["config"]["models"]["hard"], "claude-opus-5-5")
-        status, state = self.call("POST", "/api/config", {"models": {"easy": "claude-sonnet-5-5"},
-                                                          "efforts": {"hard": "xhigh", "medium": "absurd"}})
-        self.assertEqual(state["config"]["models"]["easy"], "claude-sonnet-5-5")
-        self.assertEqual(state["config"]["efforts"]["hard"], "xhigh")
-        self.assertEqual(state["config"]["efforts"]["medium"], "medium")
-        config.save({"models": dict(config.DEFAULT_MODELS), "efforts": dict(config.DEFAULT_EFFORTS)})
+        self.assertEqual(state["config"]["model"], "claude-haiku-5-5")
+        self.assertEqual(state["config"]["effort"], "low")
+        self.assertEqual(state["config"]["effort_hard"], "medium")
+        status, state = self.call("POST", "/api/config", {"model": "claude-haiku-5-5", "effort": "xhigh"})
+        self.assertEqual(state["config"]["model"], "claude-haiku-5-5")
+        self.assertEqual(state["config"]["effort"], "xhigh")
+        status, state = self.call("POST", "/api/config", {"effort": "absurd"})
+        self.assertEqual(state["config"]["effort"], "low")
+        config.save({"model": config.DEFAULT_MODEL, "effort": config.DEFAULT_EFFORT,
+                     "effort_hard": config.DEFAULT_EFFORT_HARD})
+
+    def test_old_per_level_settings_are_ignored(self):
+        (config.DATA / "config.json").write_text(json.dumps({"models": {"easy": "claude-opus-5-5"},
+                                                              "efforts": {"easy": "max"}}), encoding="utf-8")
+        cfg = config.load()
+        self.assertEqual(cfg, {"model": config.DEFAULT_MODEL, "effort": config.DEFAULT_EFFORT,
+                               "effort_hard": config.DEFAULT_EFFORT_HARD, "fallback": "auto"})
+        config.save({"model": config.DEFAULT_MODEL})
 
     def test_key_is_never_returned_whole(self):
         status, state = self.call("POST", "/api/key", {"name": "claude", "value": "sk-ant-segredo-1234"})
@@ -88,8 +99,22 @@ class ServerTest(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(res["move"], "C2")
         self.assertEqual(res["model"], "claude-haiku-5-5")
+        sent_body = self.fake.requests[-1]["body"]
+        self.assertIn("young child", sent_body["system"][0]["text"])
+        self.assertEqual(sent_body["output_config"]["effort"], "low")
         sent = self.fake.requests[-1]
         self.assertEqual(sent["headers"].get("x-api-key"), "sk-ant-segredo-1234")
+
+    def test_hard_thinks_more_with_the_same_model(self):
+        self.call("POST", "/api/key", {"name": "claude", "value": "sk-ant-segredo-1234"})
+        efforts = {}
+        for level in ("easy", "medium", "hard"):
+            self.fake.answers.append(claude_move("e4"))
+            self.call("POST", "/api/move", {"game": "chess", "difficulty": level, "position": "p", "moves": ["e4", "d4"]})
+            body = self.fake.requests[-1]["body"]
+            self.assertEqual(body["model"], "claude-haiku-5-5")
+            efforts[level] = body["output_config"]["effort"]
+        self.assertEqual(efforts, {"easy": "low", "medium": "low", "hard": "medium"})
 
     def test_move_errors_reach_the_screen(self):
         self.call("POST", "/api/key", {"name": "claude", "value": "sk-ant-segredo-1234"})

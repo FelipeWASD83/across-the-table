@@ -12,10 +12,13 @@ APP_DIR = ROOT / "app"
 DATA = Path(os.environ.get("ACROSS_THE_TABLE_DATA") or (ROOT / "data"))
 PORT = 8084
 
-# What each difficulty means. The model and effort can be changed in Settings; the play style cannot.
+# The difficulty changes how Claude is told to play (ai.style); every level uses the same model (decision of
+# 10/11/2026: changing model per level still played too well). Only Hard thinks a bit more: Haiku 5.5 with low
+# effort for Easy and Medium and medium effort for Hard, as he chose after testing with Haiku.
 DIFFICULTIES = ("easy", "medium", "hard")
-DEFAULT_MODELS = {"easy": "claude-haiku-5-5", "medium": "claude-sonnet-5-5", "hard": "claude-opus-5-5"}
-DEFAULT_EFFORTS = {"easy": "low", "medium": "medium", "hard": "high"}
+DEFAULT_MODEL = "claude-haiku-5-5"
+DEFAULT_EFFORT = "low"
+DEFAULT_EFFORT_HARD = "medium"
 
 MODELS = [
     ("claude-haiku-5-5", "Claude Haiku 5.5"),
@@ -27,12 +30,6 @@ MODELS = [
     ("gpt-6-astra", "GPT-6 Astra"),
 ]
 EFFORTS = ("low", "medium", "high", "xhigh", "max")
-
-DEFAULTS = {
-    "models": dict(DEFAULT_MODELS),
-    "efforts": dict(DEFAULT_EFFORTS),
-    "fallback": "auto",
-}
 
 _lock = threading.Lock()
 
@@ -52,17 +49,16 @@ def _settings_file() -> Path:
 
 
 def _clean(saved: dict) -> dict:
-    models = dict(DEFAULT_MODELS)
-    efforts = dict(DEFAULT_EFFORTS)
-    for level in DIFFICULTIES:
-        model = str(((saved.get("models") or {}).get(level)) or "").strip()
-        if model:
-            models[level] = model[:80]
-        effort = (saved.get("efforts") or {}).get(level)
-        if effort in EFFORTS:
-            efforts[level] = effort
+    # Settings from 1.0.0 had one model per level; they are simply ignored.
+    model = str(saved.get("model") or "").strip()[:80] or DEFAULT_MODEL
+    effort = saved.get("effort") if saved.get("effort") in EFFORTS else DEFAULT_EFFORT
+    effort_hard = saved.get("effort_hard") if saved.get("effort_hard") in EFFORTS else DEFAULT_EFFORT_HARD
     fallback = str(saved.get("fallback") or "auto").strip()[:80] or "auto"
-    return {"models": models, "efforts": efforts, "fallback": fallback}
+    return {"model": model, "effort": effort, "effort_hard": effort_hard, "fallback": fallback}
+
+
+def effort_for(cfg: dict, difficulty: str) -> str:
+    return cfg["effort_hard"] if difficulty == "hard" else cfg["effort"]
 
 
 def load() -> dict:
@@ -76,12 +72,9 @@ def load() -> dict:
 def save(changes: dict) -> dict:
     with _lock:
         current = load()
-        if isinstance(changes.get("models"), dict):
-            current["models"].update({k: v for k, v in changes["models"].items() if k in DIFFICULTIES})
-        if isinstance(changes.get("efforts"), dict):
-            current["efforts"].update({k: v for k, v in changes["efforts"].items() if k in DIFFICULTIES})
-        if "fallback" in changes:
-            current["fallback"] = changes["fallback"]
+        for key in ("model", "effort", "effort_hard", "fallback"):
+            if key in changes:
+                current[key] = changes[key]
         current = _clean(current)
         DATA.mkdir(parents=True, exist_ok=True)
         tmp = _settings_file().with_suffix(".tmp")
